@@ -18,17 +18,23 @@ def vprint(*args, **kwargs):
 
 
 class InvertedIndex:
+    class IndexEntry:
+        def __init__(self):
+            self.ids = []
+            self.freq = 0
+
     def __init__(self):
-        self._max_term_freq = 0
-        self._term_dict = defaultdict(list)
+        self._max_uniq_freq = 0
+        self._term_dict = defaultdict(InvertedIndex.IndexEntry)
         self._sorted_terms = []
         self._dirty = True
 
     def add_terms(self, doc_id, terms):
-        for term in terms:
-            ids = self._term_dict[term]
-            ids.append(doc_id)
-            self._max_term_freq = max(self._max_term_freq, len(ids))
+        for term, count in terms:
+            entry = self._term_dict[term]
+            entry.ids.append(doc_id)
+            entry.freq += count
+            self._max_uniq_freq = max(self._max_uniq_freq, len(entry.ids))
 
         self._dirty = True
 
@@ -36,8 +42,8 @@ class InvertedIndex:
         if not self._dirty:
             return
 
-        for ids in self._term_dict.values():
-            ids.sort()
+        for entry in self._term_dict.values():
+            entry.ids.sort()
 
         self._sorted_terms = sorted(self._term_dict.items(),
                                     key=lambda i: i[0])
@@ -47,14 +53,15 @@ class InvertedIndex:
     def write_csv(self, fp):
         self._sort()
 
-        fields = ['term', 'freq']
-        fields.extend('d{}'.format(i) for i in range(self._max_term_freq))
+        fields = ['term', 'freq', 'freq_uniq']
+        fields.extend('d{}'.format(i) for i in range(self._max_uniq_freq))
         fp.write('{}{}'.format(CSV_SEP.join(fields), CSV_EOL))
 
-        for term, ids in self._sorted_terms:
+        for term, entry in self._sorted_terms:
             fp.write('{}{}'.format(term, CSV_SEP))
-            fp.write('{}{}'.format(len(ids), CSV_SEP))
-            fp.write('{}{}'.format(CSV_SEP.join(ids), CSV_EOL))
+            fp.write('{}{}'.format(entry.freq, CSV_SEP))
+            fp.write('{}{}'.format(len(entry.ids), CSV_SEP))
+            fp.write('{}{}'.format(CSV_SEP.join(entry.ids), CSV_EOL))
 
     def write_json(self, fp):
         self._sort()
@@ -62,12 +69,18 @@ class InvertedIndex:
         obj = {
             'terms': [{
                 'term': term,
-                'freq': len(ids),
-                'ids': ids
-            } for term, ids in self._sorted_terms]
+                'freq_uniq': len(entry.ids),
+                'freq': entry.freq,
+                'ids': entry.ids
+            } for term, entry in self._sorted_terms]
         }
 
         json.dump(obj, fp, indent=4, ensure_ascii=False)
+
+
+def get_terms(terms_dict):
+    for term, info in terms_dict.items():
+        yield term, info['term_freq']
 
 
 def get_inverted_index(es, index, doc_type, field, verbose):
@@ -98,7 +111,7 @@ def get_inverted_index(es, index, doc_type, field, verbose):
         for result in resp['docs']:
             doc_id = result['_id']
             if 'term_vectors' in result:
-                terms = result['term_vectors'][field]['terms'].keys()
+                terms = get_terms(result['term_vectors'][field]['terms'])
                 inv_index.add_terms(doc_id, terms)
             else:
                 errors += 1

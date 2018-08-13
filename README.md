@@ -33,4 +33,4 @@ $ ./inelastic.py -f description -i products -o json > products.json
 ## Todo
 - Add better examples
 - Add more term statistics
-- Handle same term appearing multiple times in the same doc
+- Pretty-print table
