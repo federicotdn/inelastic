@@ -24,12 +24,50 @@ class InvertedIndex:
             self.freq = 0
 
     def __init__(self):
+        self._reset()
+
+    def _reset(self):
         self._max_uniq_freq = 0
         self._term_dict = defaultdict(InvertedIndex.IndexEntry)
         self._sorted_terms = []
         self._dirty = True
 
-    def add_terms(self, doc_id, terms):
+    def read_index(self, es, index, doc_type, field):
+        self._reset()
+        search = es.search(index=index, scroll=SCROLL_TIME, _source=False,
+                           body={
+                               'size': SEARCH_SIZE
+                           })
+
+        while search['hits']['hits']:
+            hits = search['hits']['hits']
+            ids = [hit['_id'] for hit in hits]
+
+            resp = es.mtermvectors(ids=ids, index=index, doc_type=doc_type,
+                                   fields=field)
+
+            errors = 0
+            for result in resp['docs']:
+                doc_id = result['_id']
+                field_dict = result.get('term_vectors', {}).get(field, None)
+                if field_dict:
+                    terms = self._extract_terms(field_dict['terms'])
+                    self._add_terms(doc_id, terms)
+                else:
+                    errors += 1
+
+            yield len(ids), errors
+
+            scroll_id = search['_scroll_id']
+            search = es.scroll(scroll_id, scroll=SCROLL_TIME)
+
+        es.clear_scroll(scroll_id)
+
+    def _extract_terms(self, terms_dict):
+        for term, info in terms_dict.items():
+            yield term, info['term_freq']
+
+    def _add_terms(self, doc_id, terms):
         for term, count in terms:
             entry = self._term_dict[term]
             entry.ids.append(doc_id)
@@ -37,6 +75,10 @@ class InvertedIndex:
             self._max_uniq_freq = max(self._max_uniq_freq, len(entry.ids))
 
         self._dirty = True
+
+    @property
+    def term_count(self):
+        return len(self._term_dict)
 
     def _sort(self):
         if not self._dirty:
@@ -78,11 +120,6 @@ class InvertedIndex:
         json.dump(obj, fp, indent=4, ensure_ascii=False)
 
 
-def get_terms(terms_dict):
-    for term, info in terms_dict.items():
-        yield term, info['term_freq']
-
-
 def get_inverted_index(es, index, doc_type, field, verbose):
     if verbose:
         doc_count = es.count(index=index)['count']
@@ -91,43 +128,21 @@ def get_inverted_index(es, index, doc_type, field, verbose):
         vprint('Document field: {}'.format(field))
         vprint('Document count: {}'.format(doc_count))
 
-    search = es.search(index=index, scroll=SCROLL_TIME, _source=False, body={
-        'size': SEARCH_SIZE
-    })
-
     errors = 0
     inv_index = InvertedIndex()
     if verbose:
         vprint('Reading term vectors...')
         pbar = tqdm(total=doc_count, file=sys.stderr)
 
-    while search['hits']['hits']:
-        hits = search['hits']['hits']
-        ids = [hit['_id'] for hit in hits]
-
-        resp = es.mtermvectors(ids=ids, index=index, doc_type=doc_type,
-                               fields=field)
-
-        for result in resp['docs']:
-            doc_id = result['_id']
-            if 'term_vectors' in result:
-                terms = get_terms(result['term_vectors'][field]['terms'])
-                inv_index.add_terms(doc_id, terms)
-            else:
-                errors += 1
-
+    for n_docs, n_errs in inv_index.read_index(es, index, doc_type, field):
         if verbose:
-            pbar.update(len(ids))
-
-        scroll_id = search['_scroll_id']
-        search = es.scroll(scroll_id, scroll=SCROLL_TIME)
+            pbar.update(n_docs)
+        errors += n_errs
 
     if verbose:
         pbar.close()
 
     vprint('Done ({} mterm vectors errors).'.format(errors))
-
-    es.clear_scroll(scroll_id)
     return inv_index
 
 
@@ -145,7 +160,7 @@ def main():
                         help='Document field.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Enable verbose mode.')
-    parser.add_argument('-o', '--output', metavar='<format>', default='json',
+    parser.add_argument('-o', '--output', metavar='<format>', default='csv',
                         choices=['json', 'csv', 'null'],
                         help='Output format. Use \'null\' to omit output.')
     args = parser.parse_args()
@@ -164,6 +179,10 @@ def main():
     except ElasticsearchException as e:
         print('An Elasticsearch error occurred:', file=sys.stderr)
         print(e, file=sys.stderr)
+        exit(1)
+
+    if not inv_index.term_count:
+        vprint('Error: Inverted index contains 0 terms.')
         exit(1)
 
     vprint('Writing inverted index in {} format...'.format(args.output))
