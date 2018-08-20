@@ -95,7 +95,7 @@ class InvertedIndex:
     def write_csv(self, fp):
         self._sort()
 
-        fields = ['term', 'freq', 'freq_uniq']
+        fields = ['term', 'freq', 'doc_count']
         fields.extend('d{}'.format(i) for i in range(self._max_uniq_freq))
         fp.write('{}{}'.format(CSV_SEP.join(fields), CSV_EOL))
 
@@ -111,7 +111,7 @@ class InvertedIndex:
         obj = {
             'terms': [{
                 'term': term,
-                'freq_uniq': len(entry.ids),
+                'doc_count': len(entry.ids),
                 'freq': entry.freq,
                 'ids': entry.ids
             } for term, entry in self._sorted_terms]
