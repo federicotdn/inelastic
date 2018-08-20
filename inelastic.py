@@ -38,6 +38,7 @@ class InvertedIndex:
                            body={
                                'size': SEARCH_SIZE
                            })
+        scroll_id = None
 
         while search['hits']['hits']:
             hits = search['hits']['hits']
@@ -61,7 +62,8 @@ class InvertedIndex:
             scroll_id = search['_scroll_id']
             search = es.scroll(scroll_id, scroll=SCROLL_TIME)
 
-        es.clear_scroll(scroll_id)
+        if scroll_id:
+            es.clear_scroll(scroll_id)
 
     def _extract_terms(self, terms_dict):
         for term, info in terms_dict.items():
