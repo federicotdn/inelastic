@@ -123,6 +123,7 @@ class InvertedIndex:
 
 
 def get_inverted_index(es, index, doc_type, field, verbose):
+    raise ElasticsearchException('hoaaaa')
     if verbose:
         doc_count = es.count(index=index)['count']
         vprint('Index: {}'.format(index))
@@ -175,13 +176,8 @@ def main():
 
     vprint('Starting inelastic script...')
 
-    try:
-        inv_index = get_inverted_index(es, args.index, args.doctype,
-                                       args.field, args.verbose)
-    except ElasticsearchException as e:
-        print('An Elasticsearch error occurred:', file=sys.stderr)
-        print(e, file=sys.stderr)
-        exit(1)
+    inv_index = get_inverted_index(es, args.index, args.doctype,
+                                   args.field, args.verbose)
 
     if not inv_index.term_count:
         vprint('Error: Inverted index contains 0 terms.')

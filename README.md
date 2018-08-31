@@ -66,6 +66,8 @@ use            1     1          2
 
 The `freq` field specifies the total amount of times the term appears in all documents, and the `doc_count` field specifies how many documents contain the term at least once. The `d0`, `d1`... fields list the IDs for documents containing the term.
 
+The chosen document field's type must be `text` or `keyword`.
+
 ## Installation
 Having `git` and Python 3 installed, use:
 ```bash
