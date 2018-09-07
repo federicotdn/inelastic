@@ -82,7 +82,8 @@ Inelastic is compatible with Elasticsearch version `6.0` and later.
 ## Usage
 These are the arguments `inelastic` accepts:
 - `-i` (`--index`): Index name (**required**).
-- `-f` (`--field`): Document field name (**required**).
+- `-f` (`--field`): Document field name from which to generate inverted index (**required**).
+- `-l` (`--id-field`): Document field to use as ID when printing results (*default: _id*).
 - `-o` (`--output`): Output format, `json` or `csv` (*default: `csv`*).
 - `-p` (`--port`): Elasticsearch host port (*default: 9200*).
 - `-e` (`--host`): Elasticsearch host address (*default: localhost*).

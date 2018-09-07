@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
 import argparse
 import sys
 import json
 from collections import defaultdict
-from elasticsearch import Elasticsearch, ElasticsearchException
+from elasticsearch import Elasticsearch
 from tqdm import tqdm
 
 SEARCH_SIZE = 200
@@ -32,24 +30,31 @@ class InvertedIndex:
         self._sorted_terms = []
         self._dirty = True
 
-    def read_index(self, es, index, doc_type, field):
+    def read_index(self, es, index, doc_type, field, id_field=None):
         self._reset()
-        search = es.search(index=index, scroll=SCROLL_TIME, _source=False,
-                           body={
-                               'size': SEARCH_SIZE
-                           })
+        search = es.search(
+            index=index,
+            scroll=SCROLL_TIME,
+            _source=[id_field] if id_field else False,
+            body={
+                'size': SEARCH_SIZE
+            }
+        )
         scroll_id = None
 
         while search['hits']['hits']:
-            hits = search['hits']['hits']
-            ids = [hit['_id'] for hit in hits]
+            hit_ids = {}
+            for hit in search['hits']['hits']:
+                val = hit['_source'][id_field] if id_field else hit['_id']
+                hit_ids[hit['_id']] = val
 
-            resp = es.mtermvectors(ids=ids, index=index, doc_type=doc_type,
-                                   fields=field)
+            resp = es.mtermvectors(ids=list(hit_ids.keys()), index=index,
+                                   doc_type=doc_type, fields=field)
 
             errors = 0
             for result in resp['docs']:
-                doc_id = result['_id']
+                doc_id = hit_ids[result['_id']]
+
                 field_dict = result.get('term_vectors', {}).get(field, None)
                 if field_dict:
                     terms = self._extract_terms(field_dict['terms'])
@@ -57,7 +62,7 @@ class InvertedIndex:
                 else:
                     errors += 1
 
-            yield len(ids), errors
+            yield len(hit_ids), errors
 
             scroll_id = search['_scroll_id']
             search = es.scroll(scroll_id, scroll=SCROLL_TIME)
@@ -122,8 +127,7 @@ class InvertedIndex:
         json.dump(obj, fp, indent=4, ensure_ascii=False)
 
 
-def get_inverted_index(es, index, doc_type, field, verbose):
-    raise ElasticsearchException('hoaaaa')
+def get_inverted_index(es, index, doc_type, field, id_field, verbose):
     if verbose:
         doc_count = es.count(index=index)['count']
         vprint('Index: {}'.format(index))
@@ -137,7 +141,8 @@ def get_inverted_index(es, index, doc_type, field, verbose):
         vprint('Reading term vectors...')
         pbar = tqdm(total=doc_count, file=sys.stderr)
 
-    for n_docs, n_errs in inv_index.read_index(es, index, doc_type, field):
+    for n_docs, n_errs in inv_index.read_index(es, index, doc_type, field,
+                                               id_field):
         if verbose:
             pbar.update(n_docs)
         errors += n_errs
@@ -159,8 +164,11 @@ def main():
                         help='Elasticsearch host port.')
     parser.add_argument('-d', '--doctype', metavar='<type>', default='_doc',
                         help='Document type.')
-    parser.add_argument('-f', '--field', metavar='<field>', required=True,
-                        help='Document field.')
+    parser.add_argument(
+        '-f', '--field', metavar='<field>', required=True,
+        help='Document field from which to generate the inverted index.')
+    parser.add_argument('-l', '--id-field', metavar='<ID field>',
+                        help='Document field to use as ID.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Enable verbose mode.')
     parser.add_argument('-o', '--output', metavar='<format>', default='csv',
@@ -177,7 +185,7 @@ def main():
     vprint('Starting inelastic script...')
 
     inv_index = get_inverted_index(es, args.index, args.doctype,
-                                   args.field, args.verbose)
+                                   args.field, args.id_field, args.verbose)
 
     if not inv_index.term_count:
         vprint('Error: Inverted index contains 0 terms.')
