@@ -1,0 +1,4 @@
+include inelastic.py
+include requirements.txt
+include LICENSE
+include README.md
