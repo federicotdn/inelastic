@@ -1,6 +1,7 @@
 import argparse
 import sys
 import json
+import csv
 from collections import defaultdict
 from elasticsearch import Elasticsearch
 from tqdm import tqdm
@@ -102,15 +103,16 @@ class InvertedIndex:
     def write_csv(self, fp):
         self._sort()
 
+        writer = csv.writer(sys.stdout)
         fields = ['term', 'freq', 'doc_count']
         fields.extend('d{}'.format(i) for i in range(self._max_uniq_freq))
-        fp.write('{}{}'.format(CSV_SEP.join(fields), CSV_EOL))
+
+        writer.writerow(fields)
 
         for term, entry in self._sorted_terms:
-            fp.write('{}{}'.format(term, CSV_SEP))
-            fp.write('{}{}'.format(entry.freq, CSV_SEP))
-            fp.write('{}{}'.format(len(entry.ids), CSV_SEP))
-            fp.write('{}{}'.format(CSV_SEP.join(entry.ids), CSV_EOL))
+            row = [term, entry.freq, len(entry.ids)]
+            row.extend(entry.ids)
+            writer.writerow(row)
 
     def write_json(self, fp):
         self._sort()
