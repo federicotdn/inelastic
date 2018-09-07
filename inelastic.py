@@ -97,7 +97,7 @@ class InvertedIndex:
     def write_csv(self, fp):
         self._sort()
 
-        fields = ['term', 'freq', 'freq_uniq']
+        fields = ['term', 'freq', 'doc_count']
         fields.extend('d{}'.format(i) for i in range(self._max_uniq_freq))
         fp.write('{}{}'.format(CSV_SEP.join(fields), CSV_EOL))
 
@@ -113,7 +113,7 @@ class InvertedIndex:
         obj = {
             'terms': [{
                 'term': term,
-                'freq_uniq': len(entry.ids),
+                'doc_count': len(entry.ids),
                 'freq': entry.freq,
                 'ids': entry.ids
             } for term, entry in self._sorted_terms]
@@ -123,6 +123,7 @@ class InvertedIndex:
 
 
 def get_inverted_index(es, index, doc_type, field, verbose):
+    raise ElasticsearchException('hoaaaa')
     if verbose:
         doc_count = es.count(index=index)['count']
         vprint('Index: {}'.format(index))
@@ -175,13 +176,8 @@ def main():
 
     vprint('Starting inelastic script...')
 
-    try:
-        inv_index = get_inverted_index(es, args.index, args.doctype,
-                                       args.field, args.verbose)
-    except ElasticsearchException as e:
-        print('An Elasticsearch error occurred:', file=sys.stderr)
-        print(e, file=sys.stderr)
-        exit(1)
+    inv_index = get_inverted_index(es, args.index, args.doctype,
+                                   args.field, args.verbose)
 
     if not inv_index.term_count:
         vprint('Error: Inverted index contains 0 terms.')

@@ -1,6 +1,9 @@
 # inelastic
 Print an Elasticsearch inverted index as a CSV table or JSON object.
 
+
+`inelastic` builds an approximation of how an inverted index would look like for a particular index and document field, using the [Multi termvectors API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-multi-termvectors.html) on all stored documents.
+
 ## Example
 
 Having the following index:
@@ -42,7 +45,7 @@ $ ./inelastic.py -i tweets -f content | column -t -s ,
 
 Which would output:
 ```
-term           freq  freq_uniq  d0  d1  d2
+term           freq  doc_count  d0  d1  d2
 adding         2     2          4   5
 an             1     1          3
 and            1     1          5
@@ -61,7 +64,9 @@ tweets         3     3          2   4   5
 use            1     1          2
 ```
 
-The `freq` field specifies the total amount of times the term appears in all documents, and the `freq_uniq` field specifies how many documents contain the term at least once. The `d0`, `d1`... fields list the IDs for documents containing the term.
+The `freq` field specifies the total amount of times the term appears in all documents, and the `doc_count` field specifies how many documents contain the term at least once. The `d0`, `d1`... fields list the IDs for documents containing the term.
+
+The chosen document field's type must be `text` or `keyword`.
 
 ## Installation
 Having `git` and Python 3 installed, use:
