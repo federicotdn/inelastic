@@ -1,8 +1,19 @@
 # inelastic
+[![Build Status](https://travis-ci.org/federicotdn/inelastic.svg?branch=travis)](https://travis-ci.org/federicotdn/inelastic)
+![License](https://img.shields.io/pypi/l/inelastic.svg?style=flat)
+[![Version](https://img.shields.io/pypi/v/inelastic.svg?style=flat)](https://pypi.python.org/pypi/inelastic)
+
 Print an Elasticsearch inverted index as a CSV table or JSON object.
 
-
 `inelastic` builds an approximation of how an inverted index would look like for a particular index and document field, using the [Multi termvectors API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-multi-termvectors.html) on all stored documents.
+
+## Installation
+To install `inelastic`, run the following command:
+```bash
+$ pip3 install --upgrade inelastic
+```
+
+`inelastic` is compatible with Elasticsearch versions `6.0.0` and later.
 
 ## Example
 
@@ -40,7 +51,7 @@ POST /tweets/_doc/_bulk
 `inelastic` could be used as follows (combined with the `column` command):
 
 ```bash
-$ ./inelastic.py -i tweets -f content | column -t -s ,
+$ inelastic -i tweets -f content | column -t -s ,
 ```
 
 Which would output:
@@ -67,17 +78,6 @@ use            1     1          2
 The `freq` field specifies the total amount of times the term appears in all documents, and the `doc_count` field specifies how many documents contain the term at least once. The `d0`, `d1`... fields list the IDs for documents containing the term.
 
 The chosen document field's type must be `text` or `keyword`.
-
-## Installation
-Having `git` and Python 3 installed, use:
-```bash
-$ git clone https://github.com/federicotdn/inelastic.git
-$ cd inelastic
-$ pip3 install -r requirements.txt # Optionally, do this inside a virtual environment
-$ chmod +x inelastic.py
-```
-
-Inelastic is compatible with Elasticsearch version `6.0` and later.
 
 ## Usage
 These are the arguments `inelastic` accepts:
