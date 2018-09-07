@@ -1,6 +1,5 @@
 # inelastic
-[![Build Status](https://travis-ci.org/federicotdn/inelastic.svg?branch=travis)](https://travis-ci.org/federicotdn/inelastic)
-![License](https://img.shields.io/pypi/l/inelastic.svg?style=flat)
+[![Build Status](https://travis-ci.org/federicotdn/inelastic.svg)](https://travis-ci.org/federicotdn/inelastic)
 [![Version](https://img.shields.io/pypi/v/inelastic.svg?style=flat)](https://pypi.python.org/pypi/inelastic)
 
 Print an Elasticsearch inverted index as a CSV table or JSON object.
