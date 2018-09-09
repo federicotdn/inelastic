@@ -8,8 +8,6 @@ from tqdm import tqdm
 
 SEARCH_SIZE = 200
 SCROLL_TIME = '1m'
-CSV_SEP = ','
-CSV_EOL = '\n'
 
 
 def vprint(*args, **kwargs):
