@@ -88,3 +88,41 @@ These are the arguments `inelastic` accepts:
 - `-e` (`--host`): Elasticsearch host address (*default: localhost*).
 - `-d` (`--doctype`): Document type (*default: _doc*).
 - `-v` (`--verbose`): Print debug information (*default: false*).
+
+## Scripting
+The `inelastic` module exposes the `InvertedIndex` class, which can be used in custom Python scripts:
+```python
+from inelastic import InvertedIndex
+from elasticsearch import Elasticsearch
+
+es = Elasticsearch()
+ii = InvertedIndex(search_size=250, scroll_time='10s')
+
+n_docs, errors = ii.read_index(es, 'tweets', 'content')
+
+print('# docs: {}, # errors: {}'.format(n_docs, errors))
+
+for entry in ii.to_list():
+    print(entry)
+```
+
+When run, the previous script will output:
+```
+# docs: 5, # errors: 0
+('adding', <IndexEntry IDs: ['4', '5']>)
+('an', <IndexEntry IDs: ['3']>)
+('and', <IndexEntry IDs: ['5']>)
+('elasticsearch', <IndexEntry IDs: ['2']>)
+('example', <IndexEntry IDs: ['3']>)
+('examples', <IndexEntry IDs: ['2']>)
+('first', <IndexEntry IDs: ['1']>)
+('is', <IndexEntry IDs: ['1', '3']>)
+('more', <IndexEntry IDs: ['4', '5']>)
+('most', <IndexEntry IDs: ['2']>)
+('my', <IndexEntry IDs: ['1']>)
+('some', <IndexEntry IDs: ['4']>)
+('this', <IndexEntry IDs: ['1', '3']>)
+('tweet', <IndexEntry IDs: ['1']>)
+('tweets', <IndexEntry IDs: ['2', '4', '5']>)
+('use', <IndexEntry IDs: ['2']>)
+```

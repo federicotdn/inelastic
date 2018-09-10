@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 __all__ = ['InvertedIndex']
 
-SEARCH_SIZE = 200
-SCROLL_TIME = '1m'
+DESCRIPTION = 'Print an Elasticsearch inverted index as a CSV table or \
+JSON object.'
 
 
 def vprint(*args, **kwargs):
@@ -23,9 +23,11 @@ class InvertedIndex:
             self.freq = 0
 
         def __repr__(self):
-            return '<IndexEntry freq: {}>'.format(self.freq)
+            return '<IndexEntry IDs: {}>'.format(self.ids)
 
-    def __init__(self):
+    def __init__(self, search_size=200, scroll_time='1m'):
+        self._search_size = search_size
+        self._scroll_time = scroll_time
         self._reset()
 
     def _reset(self):
@@ -34,14 +36,24 @@ class InvertedIndex:
         self._sorted_terms = []
         self._dirty = True
 
-    def read_index(self, es, index, doc_type, field, id_field=None):
+    def read_index(self, es, index, field, id_field=None, doc_type='_doc'):
+        total_docs, total_errors = 0, 0
+        for n_docs, errors in self.read_index_streaming(es, index, field,
+                                                        id_field, doc_type):
+            total_docs += n_docs
+            total_errors += errors
+
+        return total_docs, total_errors
+
+    def read_index_streaming(self, es, index, field, id_field=None,
+                             doc_type='_doc'):
         self._reset()
         search = es.search(
             index=index,
-            scroll=SCROLL_TIME,
+            scroll=self._scroll_time,
             _source=[id_field] if id_field else False,
             body={
-                'size': SEARCH_SIZE
+                'size': self._search_size
             }
         )
         scroll_id = None
@@ -69,7 +81,7 @@ class InvertedIndex:
             yield len(hit_ids), errors
 
             scroll_id = search['_scroll_id']
-            search = es.scroll(scroll_id, scroll=SCROLL_TIME)
+            search = es.scroll(scroll_id, scroll=self._scroll_time)
 
         if scroll_id:
             es.clear_scroll(scroll_id)
@@ -103,9 +115,9 @@ class InvertedIndex:
 
         self._dirty = False
 
-    def to_dict(self):
+    def to_list(self):
         self._sort()
-        return dict(self._term_dict)
+        return self._sorted_terms
 
     def write_csv(self, fp):
         self._sort()
@@ -142,6 +154,8 @@ def get_inverted_index(es, index, doc_type, field, id_field, verbose):
         vprint('Index: {}'.format(index))
         vprint('Document type: {}'.format(doc_type))
         vprint('Document field: {}'.format(field))
+        if id_field:
+            vprint('Document ID field: {}'.format(id_field))
         vprint('Document count: {}'.format(doc_count))
 
     errors = 0
@@ -150,8 +164,8 @@ def get_inverted_index(es, index, doc_type, field, id_field, verbose):
         vprint('Reading term vectors...')
         pbar = tqdm(total=doc_count, file=sys.stderr)
 
-    for n_docs, n_errs in inv_index.read_index(es, index, doc_type, field,
-                                               id_field):
+    for n_docs, n_errs in inv_index.read_index_streaming(es, index, field,
+                                                         id_field, doc_type):
         if verbose:
             pbar.update(n_docs)
         errors += n_errs
@@ -164,7 +178,7 @@ def get_inverted_index(es, index, doc_type, field, id_field, verbose):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog='inelastic', description=DESCRIPTION)
     parser.add_argument('-i', '--index', metavar='<name>', required=True,
                         help='Index name.')
     parser.add_argument('-e', '--host', metavar='<host>', default='localhost',
