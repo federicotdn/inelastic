@@ -6,6 +6,8 @@ from collections import defaultdict
 from elasticsearch import Elasticsearch
 from tqdm import tqdm
 
+__all__ = ['InvertedIndex']
+
 SEARCH_SIZE = 200
 SCROLL_TIME = '1m'
 
@@ -19,6 +21,9 @@ class InvertedIndex:
         def __init__(self):
             self.ids = []
             self.freq = 0
+
+        def __repr__(self):
+            return '<IndexEntry freq: {}>'.format(self.freq)
 
     def __init__(self):
         self._reset()
@@ -98,10 +103,14 @@ class InvertedIndex:
 
         self._dirty = False
 
+    def to_dict(self):
+        self._sort()
+        return dict(self._term_dict)
+
     def write_csv(self, fp):
         self._sort()
 
-        writer = csv.writer(sys.stdout)
+        writer = csv.writer(fp)
         fields = ['term', 'freq', 'doc_count']
         fields.extend('d{}'.format(i) for i in range(self._max_uniq_freq))
 
