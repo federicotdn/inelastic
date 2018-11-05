@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 
 with open('requirements.txt') as f:
     requires = f.read().splitlines()

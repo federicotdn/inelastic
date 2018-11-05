@@ -16,6 +16,18 @@ def vprint(*args, **kwargs):
     print(*args, **kwargs, file=sys.stderr)
 
 
+class MissingIndexException(Exception):
+    pass
+
+
+class MissingDocumentTypeException(Exception):
+    pass
+
+
+class MissingFieldException(Exception):
+    pass
+
+
 class InvertedIndex:
     class IndexEntry:
         def __init__(self):
@@ -72,6 +84,7 @@ class InvertedIndex:
                 doc_id = hit_ids[result['_id']]
 
                 field_dict = result.get('term_vectors', {}).get(field, None)
+
                 if field_dict:
                     terms = self._extract_terms(field_dict['terms'])
                     self._add_terms(doc_id, terms)
@@ -149,6 +162,21 @@ class InvertedIndex:
 
 
 def get_inverted_index(es, index, doc_type, field, id_field, verbose):
+    if not es.indices.exists(index):
+        raise MissingIndexException(index)
+
+    mappings = es.indices.get_mapping(index=index)[index]['mappings']
+    if doc_type not in mappings:
+        raise MissingDocumentTypeException(doc_type)
+
+    doc_mapping = mappings[doc_type]['properties']
+
+    if field not in doc_mapping:
+        raise MissingFieldException(field)
+
+    if id_field and id_field not in doc_mapping:
+        raise MissingFieldException(id_field)
+
     if verbose:
         doc_count = es.count(index=index)['count']
         vprint('Index: {}'.format(index))
