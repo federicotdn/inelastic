@@ -58,14 +58,21 @@ class InvertedIndex:
         return total_docs, total_errors
 
     def read_index_streaming(self, es, index, field, id_field=None,
-                             doc_type='_doc'):
+                             doc_type='_doc', query=None):
         self._reset()
+
+        if not query:
+            query = {
+                'match_all': {}
+            }
+
         search = es.search(
             index=index,
             scroll=self._scroll_time,
             _source=[id_field] if id_field else False,
             body={
-                'size': self._search_size
+                'size': self._search_size,
+                'query': query
             }
         )
         scroll_id = None
@@ -161,7 +168,7 @@ class InvertedIndex:
         json.dump(obj, fp, indent=4, ensure_ascii=False)
 
 
-def get_inverted_index(es, index, doc_type, field, id_field, verbose):
+def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
     if not es.indices.exists(index):
         raise MissingIndexException(index)
 
@@ -176,6 +183,9 @@ def get_inverted_index(es, index, doc_type, field, id_field, verbose):
 
     if id_field and id_field not in doc_mapping:
         raise MissingFieldException(id_field)
+
+    if query:
+        query = json.loads(query)
 
     if verbose:
         doc_count = es.count(index=index)['count']
@@ -193,7 +203,8 @@ def get_inverted_index(es, index, doc_type, field, id_field, verbose):
         pbar = tqdm(total=doc_count, file=sys.stderr)
 
     for n_docs, n_errs in inv_index.read_index_streaming(es, index, field,
-                                                         id_field, doc_type):
+                                                         id_field, doc_type,
+                                                         query):
         if verbose:
             pbar.update(n_docs)
         errors += n_errs
@@ -225,6 +236,9 @@ def main():
     parser.add_argument('-o', '--output', metavar='<format>', default='csv',
                         choices=['json', 'csv', 'null'],
                         help='Output format. Use \'null\' to omit output.')
+    parser.add_argument(
+        '-q', '--query', metavar='<json>',
+        help='Optional JSON DSL query to use when fetching documents.')
     args = parser.parse_args()
 
     if not args.verbose:
@@ -236,7 +250,8 @@ def main():
     vprint('Starting inelastic script...')
 
     inv_index = get_inverted_index(es, args.index, args.doctype,
-                                   args.field, args.id_field, args.verbose)
+                                   args.field, args.id_field, args.query,
+                                   args.verbose)
 
     if not inv_index.term_count:
         vprint('Error: Inverted index contains 0 terms.')

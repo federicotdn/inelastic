@@ -87,6 +87,7 @@ These are the arguments `inelastic` accepts:
 - `-p` (`--port`): Elasticsearch host port (*default: 9200*).
 - `-e` (`--host`): Elasticsearch host address (*default: localhost*).
 - `-d` (`--doctype`): Document type (*default: _doc*).
+- `-q` (`--query`): Elasticsearch DSL JSON query to use when fetch documents. (*default: None*).
 - `-v` (`--verbose`): Print debug information (*default: false*).
 
 ## Scripting
