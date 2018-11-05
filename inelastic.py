@@ -186,9 +186,16 @@ def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
 
     if query:
         query = json.loads(query)
+    else:
+        query = {
+            'match_all': {}
+        }
 
     if verbose:
-        doc_count = es.count(index=index)['count']
+        doc_count = es.count(index=index, body={
+            'query': query
+        })['count']
+
         vprint('Index: {}'.format(index))
         vprint('Document type: {}'.format(doc_type))
         vprint('Document field: {}'.format(field))
