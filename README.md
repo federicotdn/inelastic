@@ -23,11 +23,9 @@ Having the following index:
 PUT /tweets
 {
     "mappings": {
-        "_doc": {
-            "properties": {
-                "content": {
-                    "type": "text"
-                }
+        "properties": {
+            "content": {
+                "type": "text"
             }
         }
     }
