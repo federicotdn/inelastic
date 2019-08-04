@@ -97,7 +97,8 @@ class InvertedIndex:
             yield len(hit_ids), errors
 
             scroll_id = search['_scroll_id']
-            search = es.scroll(scroll_id, scroll=self._scroll_time)
+            search = es.scroll(body={'scroll_id': scroll_id},
+                               scroll=self._scroll_time)
 
         if scroll_id:
             es.clear_scroll(scroll_id)
