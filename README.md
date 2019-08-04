@@ -12,7 +12,9 @@ To install `inelastic`, run the following command:
 $ pip3 install --upgrade inelastic
 ```
 
-`inelastic` is compatible with Elasticsearch versions `6.0.0` and later.
+For Elasticsearch 7.0 and later, use the minor version 2 (0.2.x) of the library.
+
+For Elasticsearch 6.0 and later, use the minor version 1 (0.1.x) of the library.
 
 ## Example
 
@@ -86,7 +88,6 @@ These are the arguments `inelastic` accepts:
 - `-o` (`--output`): Output format, `json` or `csv` (*default: `csv`*).
 - `-p` (`--port`): Elasticsearch host port (*default: 9200*).
 - `-e` (`--host`): Elasticsearch host address (*default: localhost*).
-- `-d` (`--doctype`): Document type (*default: _doc*).
 - `-q` (`--query`): Elasticsearch DSL JSON query to use when fetch documents. (*default: None*).
 - `-v` (`--verbose`): Print debug information (*default: false*).
 

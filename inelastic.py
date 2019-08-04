@@ -20,10 +20,6 @@ class MissingIndexException(Exception):
     pass
 
 
-class MissingDocumentTypeException(Exception):
-    pass
-
-
 class MissingFieldException(Exception):
     pass
 
@@ -48,17 +44,17 @@ class InvertedIndex:
         self._sorted_terms = []
         self._dirty = True
 
-    def read_index(self, es, index, field, id_field=None, doc_type='_doc'):
+    def read_index(self, es, index, field, id_field=None):
         total_docs, total_errors = 0, 0
         for n_docs, errors in self.read_index_streaming(es, index, field,
-                                                        id_field, doc_type):
+                                                        id_field):
             total_docs += n_docs
             total_errors += errors
 
         return total_docs, total_errors
 
     def read_index_streaming(self, es, index, field, id_field=None,
-                             doc_type='_doc', query=None):
+                             query=None):
         self._reset()
 
         if not query:
@@ -84,7 +80,7 @@ class InvertedIndex:
                 hit_ids[hit['_id']] = val
 
             resp = es.mtermvectors(ids=list(hit_ids.keys()), index=index,
-                                   doc_type=doc_type, fields=field)
+                                   fields=field)
 
             errors = 0
             for result in resp['docs']:
@@ -168,15 +164,12 @@ class InvertedIndex:
         json.dump(obj, fp, indent=4, ensure_ascii=False)
 
 
-def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
+def get_inverted_index(es, index, field, id_field, query, verbose):
     if not es.indices.exists(index):
         raise MissingIndexException(index)
 
     mappings = es.indices.get_mapping(index=index)[index]['mappings']
-    if doc_type not in mappings:
-        raise MissingDocumentTypeException(doc_type)
-
-    doc_mapping = mappings[doc_type]['properties']
+    doc_mapping = mappings['properties']
 
     if field not in doc_mapping:
         raise MissingFieldException(field)
@@ -197,7 +190,6 @@ def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
         })['count']
 
         vprint('Index: {}'.format(index))
-        vprint('Document type: {}'.format(doc_type))
         vprint('Document field: {}'.format(field))
         if id_field:
             vprint('Document ID field: {}'.format(id_field))
@@ -210,8 +202,7 @@ def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
         pbar = tqdm(total=doc_count, file=sys.stderr)
 
     for n_docs, n_errs in inv_index.read_index_streaming(es, index, field,
-                                                         id_field, doc_type,
-                                                         query):
+                                                         id_field, query):
         if verbose:
             pbar.update(n_docs)
         errors += n_errs
@@ -231,8 +222,6 @@ def main():
                         help='Elasticsearch host address.')
     parser.add_argument('-p', '--port', metavar='<port>', default=9200,
                         help='Elasticsearch host port.')
-    parser.add_argument('-d', '--doctype', metavar='<type>', default='_doc',
-                        help='Document type.')
     parser.add_argument(
         '-f', '--field', metavar='<field>', required=True,
         help='Document field from which to generate the inverted index.')
@@ -256,9 +245,8 @@ def main():
 
     vprint('Starting inelastic script...')
 
-    inv_index = get_inverted_index(es, args.index, args.doctype,
-                                   args.field, args.id_field, args.query,
-                                   args.verbose)
+    inv_index = get_inverted_index(es, args.index, args.field, args.id_field,
+                                   args.query, args.verbose)
 
     if not inv_index.term_count:
         vprint('Error: Inverted index contains 0 terms.')

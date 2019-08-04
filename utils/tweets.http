@@ -10,20 +10,18 @@
 PUT :es/tweets
 Content-type: application/json
 {
-  "mappings": {
-    "_doc": {
-      "properties": {
-        "content": {
-          "type": "text"
+    "mappings": {
+        "properties": {
+            "content": {
+                "type": "text"
+            }
         }
-      }
     }
-  }
 }
 
 # Insert documents
 
-POST :es/tweets/_doc/_bulk
+POST :es/tweets/_bulk
 Content-Type: application/json
 { "index": { "_id": 1 }}
 { "content": "This is my first tweet." }
