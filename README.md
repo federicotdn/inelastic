@@ -12,9 +12,9 @@ To install `inelastic`, run the following command:
 $ pip3 install --upgrade inelastic
 ```
 
-For Elasticsearch 7.0 and later, use the minor version 2 (0.2.x) of the library.
+For Elasticsearch 7.0 and later, use the minor version 2 (`0.2.x`) of the library.
 
-For Elasticsearch 6.0 and later, use the minor version 1 (0.1.x) of the library.
+For Elasticsearch 6.0 and later, use the minor version 1 (`0.1.x`) of the library.
 
 ## Example
 

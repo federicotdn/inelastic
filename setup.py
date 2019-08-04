@@ -5,7 +5,7 @@ VERSION = '0.2.0'
 with open('requirements.txt') as f:
     requires = f.read().splitlines()
 
-with open('README.md') as f:
+with open('README.rst') as f:
     long_description = f.read()
 
 setup(
@@ -14,7 +14,6 @@ setup(
     version=VERSION,
     description='Print an Elasticsearch inverted index as a CSV table or JSON object.',
     long_description=long_description,
-    long_description_content_type='text/markdown',
     author='Federico Tedin',
     author_email='federicotedin@gmail.com',
     install_requires=requires,
