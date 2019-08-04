@@ -4,4 +4,4 @@ python:
 install:
   - pip install -r requirements.txt -r requirements-dev.txt
 script:
-  - flake8 inelastic.py
+  - make flake8
