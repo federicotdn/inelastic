@@ -4,7 +4,7 @@
 
 Print an Elasticsearch inverted index as a CSV table or JSON object.
 
-`inelastic` builds an approximation of how an inverted index would look like for a particular index and document field, using the [Multi termvectors API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-multi-termvectors.html) on all stored documents.
+`inelastic` builds an approximation of how an [inverted index](https://www.elastic.co/blog/found-elasticsearch-from-the-bottom-up) would look like for a particular index and document field, using the [Multi termvectors API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-multi-termvectors.html) on all stored documents.
 
 ## Installation
 To install `inelastic`, run the following command:
@@ -83,11 +83,11 @@ These are the arguments `inelastic` accepts:
 - `-i` (`--index`): Index name (**required**).
 - `-f` (`--field`): Document field name from which to generate inverted index (**required**).
 - `-l` (`--id-field`): Document field to use as ID when printing results (*default: _id*).
-- `-o` (`--output`): Output format, `json` or `csv` (*default: `csv`*).
+- `-o` (`--output`): Output format, `json` or `csv` (*default: csv*).
 - `-p` (`--port`): Elasticsearch host port (*default: 9200*).
 - `-e` (`--host`): Elasticsearch host address (*default: localhost*).
 - `-q` (`--query`): Elasticsearch DSL JSON query to use when fetch documents. (*default: None*).
-- `-v` (`--verbose`): Print debug information (*default: false*).
+- `-v` (`--verbose`): Print debug information (*default: False*).
 
 ## Scripting
 The `inelastic` module exposes the `InvertedIndex` class, which can be used in custom Python scripts:
