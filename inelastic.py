@@ -3,8 +3,10 @@ import sys
 import json
 import csv
 from collections import defaultdict
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch as Elasticsearch7
+from elasticsearch6 import Elasticsearch as Elasticsearch6
 from tqdm import tqdm
+import requests
 
 __all__ = ['InvertedIndex']
 
@@ -17,6 +19,10 @@ def vprint(*args, **kwargs):
 
 
 class MissingIndexException(Exception):
+    pass
+
+
+class MissingDocumentTypeException(Exception):
     pass
 
 
@@ -44,17 +50,19 @@ class InvertedIndex:
         self._sorted_terms = []
         self._dirty = True
 
-    def read_index(self, es, index, field, id_field=None):
+    def read_index(self, es, index, field, id_field=None, doc_type=None,
+                   query=None):
         total_docs, total_errors = 0, 0
         for n_docs, errors in self.read_index_streaming(es, index, field,
-                                                        id_field):
+                                                        id_field, doc_type,
+                                                        query):
             total_docs += n_docs
             total_errors += errors
 
         return total_docs, total_errors
 
     def read_index_streaming(self, es, index, field, id_field=None,
-                             query=None):
+                             doc_type=None, query=None):
         self._reset()
 
         if not query:
@@ -81,13 +89,19 @@ class InvertedIndex:
                 val = hit['_source'][id_field] if id_field else hit['_id']
                 hit_ids[hit['_id']] = val
                 hit_docs[hit['_id']] = {
-                    "_id": hit['_id'],
-                    "_index": hit['_index'],
-                    "_type": hit['_type']
+                    '_id': hit['_id'],
+                    '_index': hit['_index'],
+                    '_type': hit['_type']
                 }
 
-            resp = es.mtermvectors(body={"docs": list(hit_docs.values())},
-                                   fields=field)
+            params = {
+                'body': {'docs': list(hit_docs.values())},
+                'fields': field
+            }
+            if doc_type:
+                params['doc_type'] = doc_type
+
+            resp = es.mtermvectors(**params)
 
             errors = 0
             for result in resp['docs']:
@@ -172,12 +186,21 @@ class InvertedIndex:
         json.dump(obj, fp, indent=4, ensure_ascii=False)
 
 
-def get_inverted_index(es, index, field, id_field, query, verbose):
+def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
     if not es.indices.exists(index):
         raise MissingIndexException(index)
 
     mappings = es.indices.get_mapping(index=index)[index]['mappings']
-    doc_mapping = mappings['properties']
+
+    if doc_type:
+        # Elasticsearch 6.X
+        if doc_type not in mappings:
+            raise MissingDocumentTypeException(doc_type)
+
+        doc_mapping = mappings[doc_type]['properties']
+    else:
+        # Elasticsearch 7.X
+        doc_mapping = mappings['properties']
 
     if field not in doc_mapping:
         raise MissingFieldException(field)
@@ -201,6 +224,8 @@ def get_inverted_index(es, index, field, id_field, query, verbose):
         vprint('Document field: {}'.format(field))
         if id_field:
             vprint('Document ID field: {}'.format(id_field))
+        if doc_type:
+            vprint('Document type: {}'.format(doc_type))
         vprint('Document count: {}'.format(doc_count))
 
     errors = 0
@@ -210,7 +235,8 @@ def get_inverted_index(es, index, field, id_field, query, verbose):
         pbar = tqdm(total=doc_count, file=sys.stderr)
 
     for n_docs, n_errs in inv_index.read_index_streaming(es, index, field,
-                                                         id_field, query):
+                                                         id_field, doc_type,
+                                                         query):
         if verbose:
             pbar.update(n_docs)
         errors += n_errs
@@ -220,6 +246,11 @@ def get_inverted_index(es, index, field, id_field, query, verbose):
 
     vprint('Done ({} mterm vectors errors).'.format(errors))
     return inv_index
+
+
+def get_elasticsearch_version(host, port):
+    information = requests.get('http://{}:{}'.format(host, port)).json()
+    return information['version']['number'].split('.')[0]
 
 
 def main():
@@ -240,6 +271,8 @@ def main():
     parser.add_argument('-o', '--output', metavar='<format>', default='csv',
                         choices=['json', 'csv', 'null'],
                         help='Output format. Use \'null\' to omit output.')
+    parser.add_argument('-d', '--doctype', metavar='<type>',
+                        help='Document type.')
     parser.add_argument(
         '-q', '--query', metavar='<json>',
         help='Optional JSON DSL query to use when fetching documents.')
@@ -249,12 +282,33 @@ def main():
         global vprint
         vprint = lambda *args, **kwargs: None  # noqa: E731
 
-    es = Elasticsearch(args.host, port=args.port)
+    es_version = get_elasticsearch_version(args.host, args.port)
+
+    if es_version == '7':
+        es_class = Elasticsearch7
+        if args.doctype:
+            print('Can\'t specify document type (-d/--doctype) when using '
+                  'Elasticsearch 7.X or greater.', file=sys.stderr)
+            exit(1)
+
+        args.doctype = None
+    elif es_version == '6':
+        es_class = Elasticsearch6
+        if not args.doctype:
+            args.doctype = '_doc'
+    else:
+        print('Elasticsearch version {} not supported.'.format(es_version),
+              file=sys.stderr)
+        exit(1)
+
+    vprint('Elasticsearch major version:', es_version)
+
+    es = es_class(args.host, port=args.port)
 
     vprint('Starting inelastic script...')
 
-    inv_index = get_inverted_index(es, args.index, args.field, args.id_field,
-                                   args.query, args.verbose)
+    inv_index = get_inverted_index(es, args.index, args.doctype, args.field,
+                                   args.id_field, args.query, args.verbose)
 
     if not inv_index.term_count:
         vprint('Error: Inverted index contains 0 terms.')

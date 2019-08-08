@@ -1,0 +1,39 @@
+# Example content for github.com/federicotdn/inelastic README.md
+# Elasticsearch 6.X version
+
+# Open this file using restclient-mode for Emacs and run each
+# HTTP request.
+
+:es = http://localhost:9200
+
+# Create tweets index
+
+PUT :es/tweets
+Content-type: application/json
+{
+  "mappings": {
+    "tweet": {
+      "properties": {
+        "content": {
+          "type": "text"
+        }
+      }
+    }
+  }
+}
+
+# Insert documents
+
+POST :es/tweets/tweet/_bulk
+Content-Type: application/json
+{ "index": { "_id": 1 }}
+{ "content": "This is my first tweet." }
+{ "index": { "_id": 2 }}
+{ "content": "Most Elasticsearch examples use tweets." }
+{ "index": { "_id": 3 }}
+{ "content": "This is an example." }
+{ "index": { "_id": 4 }}
+{ "content": "Adding some more tweets." }
+{ "index": { "_id": 5 }}
+{ "content": "Adding more and more tweets." }
+

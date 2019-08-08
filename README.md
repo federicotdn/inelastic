@@ -12,9 +12,7 @@ To install `inelastic`, run the following command:
 $ pip3 install --upgrade inelastic
 ```
 
-For Elasticsearch 7.0 and later, use the minor version 2 (`0.2.x`) of the library.
-
-For Elasticsearch 6.0 and later, use the minor version 1 (`0.1.x`) of the library.
+`inelastic` currently only supports Elasticsearch versions 6.X and 7.X.
 
 ## Example
 
@@ -87,7 +85,9 @@ These are the arguments `inelastic` accepts:
 - `-p` (`--port`): Elasticsearch host port (*default: 9200*).
 - `-e` (`--host`): Elasticsearch host address (*default: localhost*).
 - `-q` (`--query`): Elasticsearch DSL JSON query to use when fetch documents. (*default: None*).
+- `-d` (`--doctype`): Document type (*default: _doc*) (**Elasticsearch 6.X only**).
 - `-v` (`--verbose`): Print debug information (*default: False*).
+- `-h` (`--help`): Show help and exit.
 
 ## Scripting
 The `inelastic` module exposes the `InvertedIndex` class, which can be used in custom Python scripts:
