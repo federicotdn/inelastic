@@ -75,11 +75,18 @@ class InvertedIndex:
 
         while search['hits']['hits']:
             hit_ids = {}
+            hit_docs = {}
+
             for hit in search['hits']['hits']:
                 val = hit['_source'][id_field] if id_field else hit['_id']
                 hit_ids[hit['_id']] = val
+                hit_docs[hit['_id']] = {
+                    "_id": hit['_id'],
+                    "_index": hit['_index'],
+                    "_type": hit['_type']
+                }
 
-            resp = es.mtermvectors(ids=list(hit_ids.keys()), index=index,
+            resp = es.mtermvectors(body={"docs": list(hit_docs.values())},
                                    fields=field)
 
             errors = 0
