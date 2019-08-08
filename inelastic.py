@@ -19,15 +19,19 @@ def vprint(*args, **kwargs):
     print(*args, **kwargs, file=sys.stderr)
 
 
-class MissingIndexException(Exception):
+class InelasticException(Exception):
     pass
 
 
-class MissingDocumentTypeException(Exception):
+class MissingIndexException(InelasticException):
     pass
 
 
-class MissingFieldException(Exception):
+class MissingDocumentTypeException(InelasticException):
+    pass
+
+
+class MissingFieldException(InelasticException):
     pass
 
 
@@ -51,6 +55,10 @@ class InvertedIndex:
         self._sorted_terms = []
         self._dirty = True
 
+    def _es_major_version(self, es):
+        version = es.info()["version"]["number"]
+        return version.split(".")[0]
+
     def read_index(self, es, index, field, id_field=None, doc_type=None, query=None):
         total_docs, total_errors = 0, 0
         for n_docs, errors in self.read_index_streaming(
@@ -64,6 +72,11 @@ class InvertedIndex:
     def read_index_streaming(
         self, es, index, field, id_field=None, doc_type=None, query=None
     ):
+        if self._es_major_version(es) == "7" and doc_type:
+            raise InelasticException(
+                "Can't specify doc_type when using Elasticsearch 7.X."
+            )
+
         self._reset()
 
         if not query:
