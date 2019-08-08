@@ -2,11 +2,12 @@ import argparse
 import sys
 import json
 import csv
+import urllib.request
+import urllib.parse
 from collections import defaultdict
 from elasticsearch import Elasticsearch as Elasticsearch7
 from elasticsearch6 import Elasticsearch as Elasticsearch6
 from tqdm import tqdm
-import requests
 
 __all__ = ["InvertedIndex"]
 
@@ -238,7 +239,9 @@ def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
 
 
 def get_elasticsearch_version(host, port):
-    information = requests.get("http://{}:{}".format(host, port)).json()
+    res = urllib.request.urlopen("http://{}:{}".format(host, port))
+    body = res.read().decode()
+    information = json.loads(body)
     return information["version"]["number"].split(".")[0]
 
 

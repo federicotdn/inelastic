@@ -93,7 +93,8 @@ These are the arguments `inelastic` accepts:
 The `inelastic` module exposes the `InvertedIndex` class, which can be used in custom Python scripts:
 ```python
 from inelastic import InvertedIndex
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch  # Only with ES 7.X
+from elasticsearch6 import Elasticsearch # Only with ES 6.X
 
 es = Elasticsearch()
 ii = InvertedIndex(search_size=250, scroll_time='10s')
