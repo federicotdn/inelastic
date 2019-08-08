@@ -1,5 +1,9 @@
-flake8:
+lint:
 	flake8 inelastic.py
+	black --check inelastic.py
+
+format:
+	black inelastic.py
 
 package:
 	mkdir -p dist

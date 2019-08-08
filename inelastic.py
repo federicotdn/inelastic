@@ -8,10 +8,10 @@ from elasticsearch6 import Elasticsearch as Elasticsearch6
 from tqdm import tqdm
 import requests
 
-__all__ = ['InvertedIndex']
+__all__ = ["InvertedIndex"]
 
-DESCRIPTION = 'Print an Elasticsearch inverted index as a CSV table or \
-JSON object.'
+DESCRIPTION = "Print an Elasticsearch inverted index as a CSV table or \
+JSON object."
 
 
 def vprint(*args, **kwargs):
@@ -37,9 +37,9 @@ class InvertedIndex:
             self.freq = 0
 
         def __repr__(self):
-            return '<IndexEntry IDs: {}>'.format(self.ids)
+            return "<IndexEntry IDs: {}>".format(self.ids)
 
-    def __init__(self, search_size=200, scroll_time='1m'):
+    def __init__(self, search_size=200, scroll_time="1m"):
         self._search_size = search_size
         self._scroll_time = scroll_time
         self._reset()
@@ -50,83 +50,74 @@ class InvertedIndex:
         self._sorted_terms = []
         self._dirty = True
 
-    def read_index(self, es, index, field, id_field=None, doc_type=None,
-                   query=None):
+    def read_index(self, es, index, field, id_field=None, doc_type=None, query=None):
         total_docs, total_errors = 0, 0
-        for n_docs, errors in self.read_index_streaming(es, index, field,
-                                                        id_field, doc_type,
-                                                        query):
+        for n_docs, errors in self.read_index_streaming(
+            es, index, field, id_field, doc_type, query
+        ):
             total_docs += n_docs
             total_errors += errors
 
         return total_docs, total_errors
 
-    def read_index_streaming(self, es, index, field, id_field=None,
-                             doc_type=None, query=None):
+    def read_index_streaming(
+        self, es, index, field, id_field=None, doc_type=None, query=None
+    ):
         self._reset()
 
         if not query:
-            query = {
-                'match_all': {}
-            }
+            query = {"match_all": {}}
 
         search = es.search(
             index=index,
             scroll=self._scroll_time,
             _source=[id_field] if id_field else False,
-            body={
-                'size': self._search_size,
-                'query': query
-            }
+            body={"size": self._search_size, "query": query},
         )
         scroll_id = None
 
-        while search['hits']['hits']:
+        while search["hits"]["hits"]:
             hit_ids = {}
             hit_docs = {}
 
-            for hit in search['hits']['hits']:
-                val = hit['_source'][id_field] if id_field else hit['_id']
-                hit_ids[hit['_id']] = val
-                hit_docs[hit['_id']] = {
-                    '_id': hit['_id'],
-                    '_index': hit['_index'],
-                    '_type': hit['_type']
+            for hit in search["hits"]["hits"]:
+                val = hit["_source"][id_field] if id_field else hit["_id"]
+                hit_ids[hit["_id"]] = val
+                hit_docs[hit["_id"]] = {
+                    "_id": hit["_id"],
+                    "_index": hit["_index"],
+                    "_type": hit["_type"],
                 }
 
-            params = {
-                'body': {'docs': list(hit_docs.values())},
-                'fields': field
-            }
+            params = {"body": {"docs": list(hit_docs.values())}, "fields": field}
             if doc_type:
-                params['doc_type'] = doc_type
+                params["doc_type"] = doc_type
 
             resp = es.mtermvectors(**params)
 
             errors = 0
-            for result in resp['docs']:
-                doc_id = hit_ids[result['_id']]
+            for result in resp["docs"]:
+                doc_id = hit_ids[result["_id"]]
 
-                field_dict = result.get('term_vectors', {}).get(field, None)
+                field_dict = result.get("term_vectors", {}).get(field, None)
 
                 if field_dict:
-                    terms = self._extract_terms(field_dict['terms'])
+                    terms = self._extract_terms(field_dict["terms"])
                     self._add_terms(doc_id, terms)
                 else:
                     errors += 1
 
             yield len(hit_ids), errors
 
-            scroll_id = search['_scroll_id']
-            search = es.scroll(body={'scroll_id': scroll_id},
-                               scroll=self._scroll_time)
+            scroll_id = search["_scroll_id"]
+            search = es.scroll(body={"scroll_id": scroll_id}, scroll=self._scroll_time)
 
         if scroll_id:
             es.clear_scroll(scroll_id)
 
     def _extract_terms(self, terms_dict):
         for term, info in terms_dict.items():
-            yield term, info['term_freq']
+            yield term, info["term_freq"]
 
     def _add_terms(self, doc_id, terms):
         for term, count in terms:
@@ -148,8 +139,7 @@ class InvertedIndex:
         for entry in self._term_dict.values():
             entry.ids.sort()
 
-        self._sorted_terms = sorted(self._term_dict.items(),
-                                    key=lambda i: i[0])
+        self._sorted_terms = sorted(self._term_dict.items(), key=lambda i: i[0])
 
         self._dirty = False
 
@@ -161,8 +151,8 @@ class InvertedIndex:
         self._sort()
 
         writer = csv.writer(fp)
-        fields = ['term', 'freq', 'doc_count']
-        fields.extend('d{}'.format(i) for i in range(self._max_uniq_freq))
+        fields = ["term", "freq", "doc_count"]
+        fields.extend("d{}".format(i) for i in range(self._max_uniq_freq))
 
         writer.writerow(fields)
 
@@ -175,12 +165,15 @@ class InvertedIndex:
         self._sort()
 
         obj = {
-            'terms': [{
-                'term': term,
-                'doc_count': len(entry.ids),
-                'freq': entry.freq,
-                'ids': entry.ids
-            } for term, entry in self._sorted_terms]
+            "terms": [
+                {
+                    "term": term,
+                    "doc_count": len(entry.ids),
+                    "freq": entry.freq,
+                    "ids": entry.ids,
+                }
+                for term, entry in self._sorted_terms
+            ]
         }
 
         json.dump(obj, fp, indent=4, ensure_ascii=False)
@@ -190,17 +183,17 @@ def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
     if not es.indices.exists(index):
         raise MissingIndexException(index)
 
-    mappings = es.indices.get_mapping(index=index)[index]['mappings']
+    mappings = es.indices.get_mapping(index=index)[index]["mappings"]
 
     if doc_type:
         # Elasticsearch 6.X
         if doc_type not in mappings:
             raise MissingDocumentTypeException(doc_type)
 
-        doc_mapping = mappings[doc_type]['properties']
+        doc_mapping = mappings[doc_type]["properties"]
     else:
         # Elasticsearch 7.X
-        doc_mapping = mappings['properties']
+        doc_mapping = mappings["properties"]
 
     if field not in doc_mapping:
         raise MissingFieldException(field)
@@ -211,32 +204,28 @@ def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
     if query:
         query = json.loads(query)
     else:
-        query = {
-            'match_all': {}
-        }
+        query = {"match_all": {}}
 
     if verbose:
-        doc_count = es.count(index=index, body={
-            'query': query
-        })['count']
+        doc_count = es.count(index=index, body={"query": query})["count"]
 
-        vprint('Index: {}'.format(index))
-        vprint('Document field: {}'.format(field))
+        vprint("Index: {}".format(index))
+        vprint("Document field: {}".format(field))
         if id_field:
-            vprint('Document ID field: {}'.format(id_field))
+            vprint("Document ID field: {}".format(id_field))
         if doc_type:
-            vprint('Document type: {}'.format(doc_type))
-        vprint('Document count: {}'.format(doc_count))
+            vprint("Document type: {}".format(doc_type))
+        vprint("Document count: {}".format(doc_count))
 
     errors = 0
     inv_index = InvertedIndex()
     if verbose:
-        vprint('Reading term vectors...')
+        vprint("Reading term vectors...")
         pbar = tqdm(total=doc_count, file=sys.stderr)
 
-    for n_docs, n_errs in inv_index.read_index_streaming(es, index, field,
-                                                         id_field, doc_type,
-                                                         query):
+    for n_docs, n_errs in inv_index.read_index_streaming(
+        es, index, field, id_field, doc_type, query
+    ):
         if verbose:
             pbar.update(n_docs)
         errors += n_errs
@@ -244,38 +233,58 @@ def get_inverted_index(es, index, doc_type, field, id_field, query, verbose):
     if verbose:
         pbar.close()
 
-    vprint('Done ({} mterm vectors errors).'.format(errors))
+    vprint("Done ({} mterm vectors errors).".format(errors))
     return inv_index
 
 
 def get_elasticsearch_version(host, port):
-    information = requests.get('http://{}:{}'.format(host, port)).json()
-    return information['version']['number'].split('.')[0]
+    information = requests.get("http://{}:{}".format(host, port)).json()
+    return information["version"]["number"].split(".")[0]
 
 
 def main():
-    parser = argparse.ArgumentParser(prog='inelastic', description=DESCRIPTION)
-    parser.add_argument('-i', '--index', metavar='<name>', required=True,
-                        help='Index name.')
-    parser.add_argument('-e', '--host', metavar='<host>', default='localhost',
-                        help='Elasticsearch host address.')
-    parser.add_argument('-p', '--port', metavar='<port>', default=9200,
-                        help='Elasticsearch host port.')
+    parser = argparse.ArgumentParser(prog="inelastic", description=DESCRIPTION)
     parser.add_argument(
-        '-f', '--field', metavar='<field>', required=True,
-        help='Document field from which to generate the inverted index.')
-    parser.add_argument('-l', '--id-field', metavar='<ID field>',
-                        help='Document field to use as ID.')
-    parser.add_argument('-v', '--verbose', action='store_true',
-                        help='Enable verbose mode.')
-    parser.add_argument('-o', '--output', metavar='<format>', default='csv',
-                        choices=['json', 'csv', 'null'],
-                        help='Output format. Use \'null\' to omit output.')
-    parser.add_argument('-d', '--doctype', metavar='<type>',
-                        help='Document type.')
+        "-i", "--index", metavar="<name>", required=True, help="Index name."
+    )
     parser.add_argument(
-        '-q', '--query', metavar='<json>',
-        help='Optional JSON DSL query to use when fetching documents.')
+        "-e",
+        "--host",
+        metavar="<host>",
+        default="localhost",
+        help="Elasticsearch host address.",
+    )
+    parser.add_argument(
+        "-p", "--port", metavar="<port>", default=9200, help="Elasticsearch host port."
+    )
+    parser.add_argument(
+        "-f",
+        "--field",
+        metavar="<field>",
+        required=True,
+        help="Document field from which to generate the inverted index.",
+    )
+    parser.add_argument(
+        "-l", "--id-field", metavar="<ID field>", help="Document field to use as ID."
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose mode."
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        metavar="<format>",
+        default="csv",
+        choices=["json", "csv", "null"],
+        help="Output format. Use 'null' to omit output.",
+    )
+    parser.add_argument("-d", "--doctype", metavar="<type>", help="Document type.")
+    parser.add_argument(
+        "-q",
+        "--query",
+        metavar="<json>",
+        help="Optional JSON DSL query to use when fetching documents.",
+    )
     args = parser.parse_args()
 
     if not args.verbose:
@@ -284,45 +293,57 @@ def main():
 
     es_version = get_elasticsearch_version(args.host, args.port)
 
-    if es_version == '7':
+    if es_version == "7":
         es_class = Elasticsearch7
         if args.doctype:
-            print('Can\'t specify document type (-d/--doctype) when using '
-                  'Elasticsearch 7.X or greater.', file=sys.stderr)
+            print(
+                "Can't specify document type (-d/--doctype) when using "
+                "Elasticsearch 7.X or greater.",
+                file=sys.stderr,
+            )
             exit(1)
 
         args.doctype = None
-    elif es_version == '6':
+    elif es_version == "6":
         es_class = Elasticsearch6
         if not args.doctype:
-            args.doctype = '_doc'
+            args.doctype = "_doc"
     else:
-        print('Elasticsearch version {} not supported.'.format(es_version),
-              file=sys.stderr)
+        print(
+            "Elasticsearch version {} not supported.".format(es_version),
+            file=sys.stderr,
+        )
         exit(1)
 
-    vprint('Elasticsearch major version:', es_version)
+    vprint("Elasticsearch major version:", es_version)
 
     es = es_class(args.host, port=args.port)
 
-    vprint('Starting inelastic script...')
+    vprint("Starting inelastic script...")
 
-    inv_index = get_inverted_index(es, args.index, args.doctype, args.field,
-                                   args.id_field, args.query, args.verbose)
+    inv_index = get_inverted_index(
+        es,
+        args.index,
+        args.doctype,
+        args.field,
+        args.id_field,
+        args.query,
+        args.verbose,
+    )
 
     if not inv_index.term_count:
-        vprint('Error: Inverted index contains 0 terms.')
+        vprint("Error: Inverted index contains 0 terms.")
         exit(1)
 
-    vprint('Writing inverted index in {} format...'.format(args.output))
+    vprint("Writing inverted index in {} format...".format(args.output))
 
-    if args.output == 'csv':
+    if args.output == "csv":
         inv_index.write_csv(sys.stdout)
-    elif args.output == 'json':
+    elif args.output == "json":
         inv_index.write_json(sys.stdout)
 
-    vprint('All done.')
+    vprint("All done.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
