@@ -13,6 +13,7 @@ __all__ = ["InvertedIndex"]
 
 DESCRIPTION = "Print an Elasticsearch inverted index as a CSV table or \
 JSON object."
+DOC_TYPE = "_doc"
 
 
 def vprint(*args, **kwargs):
@@ -318,12 +319,10 @@ def main():
                 file=sys.stderr,
             )
             exit(1)
-
-        args.doctype = None
     elif es_version == "6":
         es_class = Elasticsearch6
         if not args.doctype:
-            args.doctype = "_doc"
+            args.doctype = DOC_TYPE
     else:
         print(
             "Elasticsearch version {} not supported.".format(es_version),
