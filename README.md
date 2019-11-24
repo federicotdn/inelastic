@@ -34,7 +34,7 @@ PUT /tweets
 
 with the following documents:
 ```
-POST /tweets/_doc/_bulk
+POST /tweets/_bulk
 { "index": { "_id": 1 }}
 { "content": "This is my first tweet." }
 { "index": { "_id": 2 }}
